@@ -53,6 +53,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
@@ -302,7 +303,8 @@ class EntityGenerator extends EntityPartGenerator implements SourceGenerator {
         }
         builder.addField(proxyField.build());
 
-        for (AttributeDescriptor attribute : entity.attributes()) {
+        List<AttributeDescriptor> attributes = entity.attributes().stream().filter(a -> !a.isTransient()).collect(Collectors.toList());
+        for (AttributeDescriptor attribute : attributes) {
 
             boolean useField = attribute.isTransient() || attribute.isEmbedded();
             TypeMirror typeMirror = attribute.typeMirror();

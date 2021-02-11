@@ -9,9 +9,12 @@ sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 dependencies {
-    compile project(':requery')
-    compile "org.eclipse.persistence:javax.persistence:$jpa_version"
-    compile 'com.squareup:javapoet:1.11.1'
+    def jpa_version = '2.1.1'
+    implementation 'io.requery:requery:1.6.0'
+    implementation "org.eclipse.persistence:javax.persistence:$jpa_version"
+    implementation 'com.squareup:javapoet:1.13.0'
+    implementation group: 'javax.annotation', name: 'javax.annotation-api', version: '1.3.2'
+
 }
 
 shadowJar {
@@ -22,7 +25,7 @@ shadowJar {
     archiveName "${project.name}.jar"
 }
 
-jar.finalizedBy shadowJar
+//jar.finalizedBy shadowJar
 
 // set idea language level
 idea.module.iml {

@@ -144,8 +144,8 @@ class AttributeMember extends BaseProcessableElement<Element> implements Attribu
         Set<ElementValidator> validators = new LinkedHashSet<>();
         ElementValidator validator = new ElementValidator(element(), processingEnvironment);
         validators.add(validator);
-        validateField(validator);
         processFieldAccessAnnotations(validator);
+        validateField(validator);
         processBasicColumnAnnotations(validator);
         processAssociativeAnnotations(processingEnvironment, validator);
         processConverterAnnotation(validator);
@@ -168,7 +168,7 @@ class AttributeMember extends BaseProcessableElement<Element> implements Attribu
     private void validateField(ElementValidator validator) {
         if (element().getKind().isField()) {
             Set<Modifier> modifiers = element().getModifiers();
-            if (!entity.isUnimplementable() && modifiers.contains(Modifier.PRIVATE)) {
+            if (!isTransient &&!entity.isUnimplementable() && modifiers.contains(Modifier.PRIVATE)) {
                 validator.error("Entity field cannot be private");
             }
             if (modifiers.contains(Modifier.STATIC)) {
