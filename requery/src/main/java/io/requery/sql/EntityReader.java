@@ -16,12 +16,14 @@
 
 package io.requery.sql;
 
+import io.requery.CascadeAction;
 import io.requery.EntityCache;
 import io.requery.PersistenceException;
 import io.requery.Queryable;
 import io.requery.meta.Attribute;
 import io.requery.meta.QueryAttribute;
 import io.requery.meta.Type;
+import io.requery.proxy.CollectionChanges;
 import io.requery.proxy.CompositeKey;
 import io.requery.proxy.EntityBuilderProxy;
 import io.requery.proxy.EntityProxy;
@@ -41,6 +43,7 @@ import io.requery.query.element.QueryElement;
 import io.requery.query.element.QueryType;
 import io.requery.util.FilteringIterator;
 import io.requery.util.Objects;
+import io.requery.util.ObservableCollection;
 import io.requery.util.function.Consumer;
 import io.requery.util.function.Predicate;
 import io.requery.util.function.Supplier;
@@ -68,7 +71,6 @@ import static io.requery.sql.Keyword.WHERE;
  *
  * @param <E> the entity type
  * @param <S> generic type from which all entities extend
- *
  * @author Nikhil Purushe
  */
 class EntityReader<E extends S, S> implements PropertyLoader<E> {
@@ -103,7 +105,7 @@ class EntityReader<E extends S, S> implements PropertyLoader<E> {
                     Expression<?> expression = aliasVersion(attribute);
                     selection.add(expression);
                 } else {
-                    selection.add((Expression)attribute);
+                    selection.add((Expression) attribute);
                 }
                 selectAttributes.add(attribute);
             }
@@ -113,12 +115,12 @@ class EntityReader<E extends S, S> implements PropertyLoader<E> {
         keyAttribute = Attributes.query(type.getSingleKeyAttribute());
         // attributes converted to array for performance
         defaultSelectionAttributes = Attributes.toArray(selectAttributes,
-            new Predicate<Attribute<E, ?>>() {
-            @Override
-            public boolean test(Attribute<E, ?> value) {
-                return true;
-            }
-        });
+                new Predicate<Attribute<E, ?>>() {
+                    @Override
+                    public boolean test(Attribute<E, ?> value) {
+                        return true;
+                    }
+                });
     }
 
     Set<Expression<?>> defaultSelection() {
@@ -192,28 +194,28 @@ class EntityReader<E extends S, S> implements PropertyLoader<E> {
             }
         };
         FilteringIterator<Attribute<E, ?>> filterator =
-            new FilteringIterator<>(attributes.iterator(), basicFilter);
+                new FilteringIterator<>(attributes.iterator(), basicFilter);
         if (filterator.hasNext()) {
             QueryBuilder qb = new QueryBuilder(context.getQueryBuilderOptions())
-                .keyword(SELECT)
-                .commaSeparated(filterator, new QueryBuilder.Appender<Attribute<E, ?>>() {
-                    @Override
-                    public void append(QueryBuilder qb, Attribute<E, ?> value) {
-                        String versionColumn = context.getPlatform()
-                                .versionColumnDefinition().columnName();
-                        if (value.isVersion() && versionColumn != null) {
-                            qb.append(versionColumn).space()
-                                    .append(AS).space()
-                                    .append(value.getName()).space();
-                        } else {
-                            qb.attribute(value);
+                    .keyword(SELECT)
+                    .commaSeparated(filterator, new QueryBuilder.Appender<Attribute<E, ?>>() {
+                        @Override
+                        public void append(QueryBuilder qb, Attribute<E, ?> value) {
+                            String versionColumn = context.getPlatform()
+                                    .versionColumnDefinition().columnName();
+                            if (value.isVersion() && versionColumn != null) {
+                                qb.append(versionColumn).space()
+                                        .append(AS).space()
+                                        .append(value.getName()).space();
+                            } else {
+                                qb.attribute(value);
+                            }
                         }
-                    }
-                })
-                .keyword(FROM)
-                .tableName(type.getName())
-                .keyword(WHERE)
-                .appendWhereConditions(type.getKeyAttributes());
+                    })
+                    .keyword(FROM)
+                    .tableName(type.getName())
+                    .keyword(WHERE)
+                    .appendWhereConditions(type.getKeyAttributes());
 
             String sql = qb.toString();
             try (Connection connection = context.getConnection();
@@ -294,18 +296,18 @@ class EntityReader<E extends S, S> implements PropertyLoader<E> {
                         return null;
                     }
                     EntityProxy<Q> referredProxy = context.getModel()
-                        .typeOf(uType).getProxyProvider().apply(entity);
+                            .typeOf(uType).getProxyProvider().apply(entity);
 
                     key = referredProxy.get(keyAttribute);
                 } else {
                     keyAttribute = Attributes.get(attribute.getMappedAttribute());
                     uType = keyAttribute.getDeclaringType().getClassType();
                     Attribute<E, ?> referenced = Attributes.get(
-                        keyAttribute.getReferencedAttribute());
+                            keyAttribute.getReferencedAttribute());
                     key = proxy.get(referenced);
                 }
                 return order(queryable.select(uType).where(keyAttribute.equal(key)),
-                    attribute.getOrderByAttribute());
+                        attribute.getOrderByAttribute());
             }
             case MANY_TO_MANY: {
                 @SuppressWarnings("unchecked")
@@ -333,9 +335,9 @@ class EntityReader<E extends S, S> implements PropertyLoader<E> {
                 }
                 // create the many to many join query
                 return order(queryable.select(uType)
-                    .join(junctionType.getClassType()).on(uId.equal(uKey))
-                    .join(type.getClassType()).on(tKey.equal(tId))
-                    .where(tId.equal(id)), attribute.getOrderByAttribute());
+                        .join(junctionType.getClassType()).on(uId.equal(uKey))
+                        .join(type.getClassType()).on(tKey.equal(tId))
+                        .where(tId.equal(id)), attribute.getOrderByAttribute());
             }
             default:
                 throw new IllegalStateException();
@@ -349,14 +351,14 @@ class EntityReader<E extends S, S> implements PropertyLoader<E> {
             if (attribute.getOrderByDirection() != null && attribute instanceof Functional) {
                 switch (attribute.getOrderByDirection()) {
                     case ASC:
-                        query.orderBy(((Functional)attribute).asc());
+                        query.orderBy(((Functional) attribute).asc());
                         break;
                     case DESC:
-                        query.orderBy(((Functional)attribute).desc());
+                        query.orderBy(((Functional) attribute).desc());
                         break;
                 }
             } else {
-                query.orderBy((Expression)attribute);
+                query.orderBy((Expression) attribute);
             }
         }
         return query;
@@ -420,7 +422,7 @@ class EntityReader<E extends S, S> implements PropertyLoader<E> {
 
                 SelectOperation<E> select = new SelectOperation<>(context, resultReader);
                 QueryElement<? extends Result<E>> query =
-                    new QueryElement<>(QueryType.SELECT, context.getModel(), select);
+                        new QueryElement<>(QueryType.SELECT, context.getModel(), select);
 
                 try (Result<E> result = query.select(selection).where(condition).get()) {
                     result.each(collector);
@@ -431,14 +433,14 @@ class EntityReader<E extends S, S> implements PropertyLoader<E> {
                         Object key = tuple.get((Expression) keyAttribute);
                         EntityProxy<E> proxy = map.get(key);
                         synchronized (proxy.syncObject()) {
-                            for (Expression expression: selection) {
+                            for (Expression expression : selection) {
                                 Object value = tuple.get(expression);
                                 if (expression instanceof AliasedExpression) {
                                     AliasedExpression aliased = (AliasedExpression) expression;
                                     expression = aliased.getInnerExpression();
                                 }
                                 Attribute<E, Object> attribute =
-                                    Attributes.query((Attribute) expression);
+                                        Attributes.query((Attribute) expression);
                                 proxy.set(attribute, value, PropertyState.LOADED);
                             }
                         }
@@ -486,7 +488,7 @@ class EntityReader<E extends S, S> implements PropertyLoader<E> {
     }
 
     private Object readKey(Attribute<E, ?> attribute, ResultSet results, int index)
-        throws SQLException {
+            throws SQLException {
         Attribute referenced = attribute;
         if (attribute.isAssociation()) {
             // in the case of a foreign key referenced read the type of the key in the other type
@@ -544,16 +546,25 @@ class EntityReader<E extends S, S> implements PropertyLoader<E> {
                             EntityReader reader = context.read(classType);
                             value = reader.createEntity();
                         }
-                        context.proxyOf(value, false)
-                            .set(Attributes.get(attribute.getReferencedAttribute()), key,
+                        EntityProxy<Object> mappedProxy = context.proxyOf(value, false);
+                        mappedProxy.set(Attributes.get(attribute.getReferencedAttribute()), key,
                                 PropertyState.LOADED);
 
                         // leave in fetch state if only key is loaded
                         PropertyState state = PropertyState.LOADED;
                         if (!stateless) {
                             state = proxy.getState(attribute);
-                            state = state == PropertyState.LOADED ? state : PropertyState.FETCH;
+                            if (state == PropertyState.LOADED) {
+                                final Attribute mapperAttribute = attribute.getMappedAttribute().get();
+                                if (mapperAttribute.getCascadeActions().contains(CascadeAction.SAVE)) {
+                                    addCascadeListener(mapperAttribute, mappedProxy, proxy, entity);
+                                }
+                            } else {
+                                state = PropertyState.FETCH;
+                            }
                         }
+
+
                         proxy.setObject(attribute, value, state);
                     }
                 } else if (isAssociation) {
@@ -572,6 +583,27 @@ class EntityReader<E extends S, S> implements PropertyLoader<E> {
         context.getStateListener().postLoad(entity, proxy);
         return entity;
     }
+
+
+    private void addCascadeListener(final Attribute mappedAttribute, final EntityProxy<Object> mappedProxy, final EntityProxy<E> proxy, final E value) {
+
+        proxy.addCascadeModificationListener(mappedProxy, new Runnable() {
+            @Override
+            public void run() {
+                Object mappedValue = mappedProxy.get(mappedAttribute);
+                if (mappedValue instanceof ObservableCollection) {
+                    ObservableCollection<Object> collection = (ObservableCollection<Object>) mappedValue;
+                    final CollectionChanges<?, Object> changes = (CollectionChanges<?, Object>) collection.observer();
+                    changes.elementModified(value);
+                } else {
+                    mappedProxy.setState(mappedAttribute, PropertyState.MODIFIED);
+                }
+            }
+        });
+
+
+    }
+
 
     final <B> E fromBuilder(ResultSet results, Attribute[] selection) throws SQLException {
         EntityBuilderProxy<B, E> proxy = new EntityBuilderProxy<>(type);

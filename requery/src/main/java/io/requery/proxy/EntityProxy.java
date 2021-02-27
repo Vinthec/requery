@@ -21,6 +21,9 @@ import io.requery.meta.Type;
 import io.requery.util.Objects;
 
 import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.WeakHashMap;
 
 /**
  * Proxy object for a data entity containing various properties that can be read or written and the
@@ -39,6 +42,7 @@ public class EntityProxy<E> implements Gettable<E>, Settable<E>, EntityStateList
     private CompositeEntityStateListener<E> listeners;
     private Object key;
     private boolean regenerateKey;
+    private Map<Object,Runnable> cascadeModificationListeners = new WeakHashMap<>();
 
     /**
      * Create a new {@link EntityProxy} instance for a given entity object that can proxy it's
@@ -218,7 +222,9 @@ public class EntityProxy<E> implements Gettable<E>, Settable<E>, EntityStateList
      */
     public void setState(Attribute<E, ?> attribute, PropertyState state) {
         if (!stateless) {
+            doOnStateChange(attribute,state);
             attribute.getPropertyState().set(entity, state);
+
         }
     }
 
@@ -375,6 +381,22 @@ public class EntityProxy<E> implements Gettable<E>, Settable<E>, EntityStateList
     public void postLoad() {
         stateListener().postLoad();
     }
+
+
+    public void addCascadeModificationListener(Object value, Runnable runnable) {
+        cascadeModificationListeners.put(value,runnable);
+    }
+
+    private void doOnStateChange(Attribute<E, ?> attribute, PropertyState newState) {
+        if(newState == PropertyState.MODIFIED && getState(attribute) != PropertyState.MODIFIED) {
+               for(Runnable action : cascadeModificationListeners.values()) {
+                   action.run();
+               }
+        }
+    }
+
+
+
 
     @Override
     public boolean equals(Object obj) {

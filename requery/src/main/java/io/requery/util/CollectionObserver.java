@@ -20,5 +20,6 @@ public interface CollectionObserver<E> {
 
     void elementAdded(E element);
     void elementRemoved(E element);
+    void elementModified(E element);
     void clear();
 }

@@ -22,6 +22,7 @@ import io.requery.util.CollectionObserver;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 
 public class CollectionChanges<T, E> implements CollectionObserver<E> {
 
@@ -29,11 +30,13 @@ public class CollectionChanges<T, E> implements CollectionObserver<E> {
     private final Attribute<T, ?> attribute;
     private final Collection<E> added;
     private final Collection<E> removed;
+    private final Collection<E> modified;
 
     CollectionChanges(EntityProxy<T> proxy, Attribute<T, ?> attribute) {
         this.proxy = proxy;
         this.attribute = attribute;
         added = new ArrayList<>();
+        modified = new HashSet<>();
         removed = new ArrayList<>();
     }
 
@@ -44,6 +47,9 @@ public class CollectionChanges<T, E> implements CollectionObserver<E> {
     public Collection<E> removedElements() {
         return removed;
     }
+
+    public Collection<E> modifiedElements() {return modified;}
+
 
     @Override
     public void elementAdded(E element) {
@@ -64,8 +70,16 @@ public class CollectionChanges<T, E> implements CollectionObserver<E> {
     }
 
     @Override
+    public void elementModified(E element) {
+        Objects.requireNotNull(element);
+        modified.add(element);
+        proxy.setState(attribute, PropertyState.MODIFIED);
+    }
+
+    @Override
     public void clear() {
         added.clear();
         removed.clear();
+        modified.clear();
     }
 }
