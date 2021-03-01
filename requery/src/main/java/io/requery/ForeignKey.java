@@ -39,7 +39,7 @@ public @interface ForeignKey {
      * @return action when the object is deleted, defaults to {@link ReferentialAction#CASCADE}
      * @see ReferentialAction
      */
-    ReferentialAction delete() default ReferentialAction.CASCADE;
+    ReferentialAction delete() default ReferentialAction.NO_ACTION;
 
     /**
      * @return action when the object is updated, defaults to {@link ReferentialAction#CASCADE}
