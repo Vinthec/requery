@@ -25,15 +25,9 @@ import android.text.TextUtils
 import io.requery.android.DefaultMapping
 import io.requery.android.LoggingListener
 import io.requery.meta.EntityModel
-import io.requery.sql.Configuration
-import io.requery.sql.ConfigurationBuilder
-import io.requery.sql.Mapping
-import io.requery.sql.Platform
-import io.requery.sql.SchemaModifier
-import io.requery.sql.TableCreationMode
+import io.requery.sql.*
 import io.requery.sql.platform.SQLite
 import io.requery.util.function.Function
-
 import java.sql.Connection
 import java.sql.SQLException
 import java.sql.SQLNonTransientConnectionException
@@ -132,7 +126,7 @@ open class DatabaseSource
      * @param platform platform instance
      * @return the configured mapping.
      */
-    protected fun onCreateMapping(platform: Platform): Mapping {
+    protected open fun onCreateMapping(platform: Platform): Mapping {
         return DefaultMapping(platform)
     }
 
@@ -141,7 +135,7 @@ open class DatabaseSource
      *
      * @param builder [instance][ConfigurationBuilder] to configure.
      */
-    protected fun onConfigure(builder: ConfigurationBuilder) {
+    protected open fun onConfigure(builder: ConfigurationBuilder) {
         if (loggingEnabled) {
             val loggingListener = LoggingListener()
             builder.addStatementListener(loggingListener)
