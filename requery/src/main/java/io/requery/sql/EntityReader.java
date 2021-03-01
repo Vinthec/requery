@@ -273,8 +273,8 @@ class EntityReader<E extends S, S> implements PropertyLoader<E> {
                     QueryInitializer<E, V> queryInitializer = (QueryInitializer<E, V>) initializer;
                     V result = queryInitializer.initialize(proxy, attribute, query);
                     proxy.set(attribute, result, PropertyState.LOADED);
-                    for (S item : (Collection<S>) result) {
-                        addCascadeListener(attribute, proxy, item);
+                    for (S entity : (Collection<S>) result) {
+                        addCascadeListener(attribute, proxy, entity);
                     }
                 }
                 break;
@@ -579,40 +579,33 @@ class EntityReader<E extends S, S> implements PropertyLoader<E> {
     }
 
 
-    private <V> void addCascadeListener(final Attribute<E, V> attribute, final EntityProxy<E> proxy, final S value) {
-        final Attribute mappedAttribute = Attributes.get(attribute.getMappedAttribute());
-        final EntityProxy<S> mappedProxy = context.proxyOf(value, false);
-        if (mappedAttribute.getCascadeActions().contains(CascadeAction.SAVE)) {
-            proxy.addCascadeModificationListener(mappedProxy, new Runnable() {
-                @Override
-                public void run() {
-                    Object mappedValue = mappedProxy.get(mappedAttribute);
-                    if (mappedValue instanceof ObservableCollection) {
-                        ObservableCollection<Object> collection = (ObservableCollection<Object>) mappedValue;
-                        final CollectionChanges<?, Object> changes = (CollectionChanges<?, Object>) collection.observer();
-                        changes.elementModified(value);
-                    } else {
-                        mappedProxy.setState(mappedAttribute, PropertyState.ASSOCIATED_IS_MODIFIED);
-                    }
-                }
-            });
+    private <V> void addCascadeListener(final Attribute<E, V> attribute, final EntityProxy<E> proxy, final S entity) {
+        if (entity != null) {
+            final EntityProxy<S> mappedProxy = context.proxyOf(entity, false);
+            if (attribute.getMappedAttribute() != null) {
+                final Attribute<S, ?> mappedAttribute = Attributes.get(attribute.getMappedAttribute());
+                _addCascadeListener(proxy, mappedProxy, mappedAttribute, entity);
+            }
+            _addCascadeListener(mappedProxy, proxy, attribute, entity);
         }
-        if (attribute.getCascadeActions().contains(CascadeAction.SAVE)) {
-            mappedProxy.addCascadeModificationListener(proxy, new Runnable() {
-                @Override
-                public void run() {
-                    Object mappedValue = proxy.get(attribute);
-                    if (mappedValue instanceof ObservableCollection) {
-                        ObservableCollection<Object> collection = (ObservableCollection<Object>) mappedValue;
-                        final CollectionChanges<?, Object> changes = (CollectionChanges<?, Object>) collection.observer();
-                        changes.elementModified(value);
-                    } else {
-                        proxy.setState(attribute, PropertyState.ASSOCIATED_IS_MODIFIED);
-                    }
-                }
-            });
-        }
+    }
 
+    private <E1, E2> void _addCascadeListener(final EntityProxy<E1> proxy, final EntityProxy<E2> oppositeProxy, final Attribute<E2, ?> oppositeAttribute, final S entity) {
+        if (oppositeAttribute.getCascadeActions().contains(CascadeAction.SAVE)) {
+            proxy.addCascadeModificationListener(oppositeProxy, new Runnable() {
+                @Override
+                public void run() {
+                    Object mappedValue = oppositeProxy.get(oppositeAttribute);
+                    if (mappedValue instanceof ObservableCollection) {
+                        ObservableCollection<Object> collection = (ObservableCollection<Object>) mappedValue;
+                        final CollectionChanges<?, Object> changes = (CollectionChanges<?, Object>) collection.observer();
+                        changes.elementModified(entity);
+                    } else {
+                        oppositeProxy.setState(oppositeAttribute, PropertyState.ASSOCIATED_IS_MODIFIED);
+                    }
+                }
+            });
+        }
     }
 
 
