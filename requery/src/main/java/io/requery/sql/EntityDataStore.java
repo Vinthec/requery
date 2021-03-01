@@ -227,7 +227,7 @@ public class EntityDataStore<T> implements BlockingEntityStore<T> {
                 E entity = iterator.next();
                 EntityProxy<E> proxy = context.proxyOf(entity, true);
                 EntityWriter<E, T> writer = context.write(proxy.type().getClassType());
-                GeneratedKeys<E> keys = writer.batchInsert(entities, keyClass != null);
+                GeneratedKeys<E> keys = writer.batchInsert(entities, keyClass != null, null);
                 transaction.commit();
                 @SuppressWarnings("unchecked")
                 Iterable<K> result = (Iterable<K>) keys;
@@ -280,7 +280,7 @@ public class EntityDataStore<T> implements BlockingEntityStore<T> {
             EntityProxy<E> proxy = context.proxyOf(entity, true);
             synchronized (proxy.syncObject()) {
                 EntityWriter<E, T> writer = context.write(proxy.type().getClassType());
-                writer.upsert(entity, proxy);
+                writer.upsert(entity, proxy,null);
                 transaction.commit();
                 return entity;
             }

@@ -30,7 +30,6 @@ import java.util.WeakHashMap;
  * {@link Attribute} meta data associated with them.
  *
  * @param <E> entity type
- *
  * @author Nikhil Purushe
  */
 public class EntityProxy<E> implements Gettable<E>, Settable<E>, EntityStateListener {
@@ -42,7 +41,7 @@ public class EntityProxy<E> implements Gettable<E>, Settable<E>, EntityStateList
     private CompositeEntityStateListener<E> listeners;
     private Object key;
     private boolean regenerateKey;
-    private Map<Object,Runnable> cascadeModificationListeners = new WeakHashMap<>();
+    private Map<Object, Runnable> cascadeModificationListeners = new WeakHashMap<>();
 
     /**
      * Create a new {@link EntityProxy} instance for a given entity object that can proxy it's
@@ -79,7 +78,7 @@ public class EntityProxy<E> implements Gettable<E>, Settable<E>, EntityStateList
         PropertyState state = fetch ? loadProperty(attribute) : getState(attribute);
         V value = attribute.getProperty().get(entity);
         if (value == null && (state == PropertyState.FETCH || stateless) &&
-            attribute.getInitializer() != null) {
+                attribute.getInitializer() != null) {
 
             value = attribute.getInitializer().initialize(this, attribute);
             set(attribute, value, PropertyState.FETCH);
@@ -222,9 +221,11 @@ public class EntityProxy<E> implements Gettable<E>, Settable<E>, EntityStateList
      */
     public void setState(Attribute<E, ?> attribute, PropertyState state) {
         if (!stateless) {
-            doOnStateChange(attribute,state);
-            attribute.getPropertyState().set(entity, state);
-
+            PropertyState oldState = getState(attribute);
+            if (!(oldState == PropertyState.MODIFIED && state == PropertyState.ASSOCIATED_IS_MODIFIED)) {
+                attribute.getPropertyState().set(entity, state);
+                doOnStateChange(attribute, state, oldState);
+            }
         }
     }
 
@@ -251,7 +252,7 @@ public class EntityProxy<E> implements Gettable<E>, Settable<E>, EntityStateList
                 key = getKey(type.getSingleKeyAttribute()); // typical case one key attribute
             } else if (type.getKeyAttributes().size() > 1) {
                 LinkedHashMap<Attribute<E, ?>, Object> keys =
-                    new LinkedHashMap<>(type.getKeyAttributes().size());
+                        new LinkedHashMap<>(type.getKeyAttributes().size());
                 for (Attribute<E, ?> attribute : type.getKeyAttributes()) {
                     keys.put(attribute, getKey(attribute));
                 }
@@ -384,18 +385,18 @@ public class EntityProxy<E> implements Gettable<E>, Settable<E>, EntityStateList
 
 
     public void addCascadeModificationListener(Object value, Runnable runnable) {
-        cascadeModificationListeners.put(value,runnable);
+        cascadeModificationListeners.put(value, runnable);
     }
 
-    private void doOnStateChange(Attribute<E, ?> attribute, PropertyState newState) {
-        if(newState == PropertyState.MODIFIED && getState(attribute) != PropertyState.MODIFIED) {
-               for(Runnable action : cascadeModificationListeners.values()) {
-                   action.run();
-               }
+    private void doOnStateChange(Attribute<E, ?> attribute, PropertyState newState, PropertyState oldState) {
+        if(newState == PropertyState.MODIFIED || newState == PropertyState.ASSOCIATED_IS_MODIFIED ) {
+            if(newState != oldState) {
+                for (Runnable action : cascadeModificationListeners.values()) {
+                    action.run();
+                }
+            }
         }
     }
-
-
 
 
     @Override

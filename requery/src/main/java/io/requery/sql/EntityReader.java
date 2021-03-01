@@ -263,6 +263,7 @@ class EntityReader<E extends S, S> implements PropertyLoader<E> {
             case MANY_TO_ONE:
                 S value = query == null ? null : query.get().firstOrNull();
                 proxy.set(attribute, attribute.getClassType().cast(value), PropertyState.LOADED);
+                addCascadeListener(attribute, proxy, value);
                 break;
             case ONE_TO_MANY:
             case MANY_TO_MANY:
@@ -272,6 +273,9 @@ class EntityReader<E extends S, S> implements PropertyLoader<E> {
                     QueryInitializer<E, V> queryInitializer = (QueryInitializer<E, V>) initializer;
                     V result = queryInitializer.initialize(proxy, attribute, query);
                     proxy.set(attribute, result, PropertyState.LOADED);
+                    for (S item : (Collection<S>) result) {
+                        addCascadeListener(attribute, proxy, item);
+                    }
                 }
                 break;
             default:
@@ -551,20 +555,10 @@ class EntityReader<E extends S, S> implements PropertyLoader<E> {
                                 PropertyState.LOADED);
 
                         // leave in fetch state if only key is loaded
-                        PropertyState state = PropertyState.LOADED;
-                        if (!stateless) {
-                            state = proxy.getState(attribute);
-                            if (state == PropertyState.LOADED) {
-                                final Attribute mapperAttribute = attribute.getMappedAttribute().get();
-                                if (mapperAttribute.getCascadeActions().contains(CascadeAction.SAVE)) {
-                                    addCascadeListener(mapperAttribute, mappedProxy, proxy, entity);
-                                }
-                            } else {
-                                state = PropertyState.FETCH;
-                            }
+                        PropertyState state = stateless ? PropertyState.LOADED : proxy.getState(attribute);
+                        if (state != PropertyState.LOADED) {
+                            state = PropertyState.FETCH;
                         }
-
-
                         proxy.setObject(attribute, value, state);
                     }
                 } else if (isAssociation) {
@@ -585,22 +579,39 @@ class EntityReader<E extends S, S> implements PropertyLoader<E> {
     }
 
 
-    private void addCascadeListener(final Attribute mappedAttribute, final EntityProxy<Object> mappedProxy, final EntityProxy<E> proxy, final E value) {
-
-        proxy.addCascadeModificationListener(mappedProxy, new Runnable() {
-            @Override
-            public void run() {
-                Object mappedValue = mappedProxy.get(mappedAttribute);
-                if (mappedValue instanceof ObservableCollection) {
-                    ObservableCollection<Object> collection = (ObservableCollection<Object>) mappedValue;
-                    final CollectionChanges<?, Object> changes = (CollectionChanges<?, Object>) collection.observer();
-                    changes.elementModified(value);
-                } else {
-                    mappedProxy.setState(mappedAttribute, PropertyState.MODIFIED);
+    private <V> void addCascadeListener(final Attribute<E, V> attribute, final EntityProxy<E> proxy, final S value) {
+        final Attribute mappedAttribute = Attributes.get(attribute.getMappedAttribute());
+        final EntityProxy<S> mappedProxy = context.proxyOf(value, false);
+        if (mappedAttribute.getCascadeActions().contains(CascadeAction.SAVE)) {
+            proxy.addCascadeModificationListener(mappedProxy, new Runnable() {
+                @Override
+                public void run() {
+                    Object mappedValue = mappedProxy.get(mappedAttribute);
+                    if (mappedValue instanceof ObservableCollection) {
+                        ObservableCollection<Object> collection = (ObservableCollection<Object>) mappedValue;
+                        final CollectionChanges<?, Object> changes = (CollectionChanges<?, Object>) collection.observer();
+                        changes.elementModified(value);
+                    } else {
+                        mappedProxy.setState(mappedAttribute, PropertyState.ASSOCIATED_IS_MODIFIED);
+                    }
                 }
-            }
-        });
-
+            });
+        }
+        if (attribute.getCascadeActions().contains(CascadeAction.SAVE)) {
+            mappedProxy.addCascadeModificationListener(proxy, new Runnable() {
+                @Override
+                public void run() {
+                    Object mappedValue = proxy.get(attribute);
+                    if (mappedValue instanceof ObservableCollection) {
+                        ObservableCollection<Object> collection = (ObservableCollection<Object>) mappedValue;
+                        final CollectionChanges<?, Object> changes = (CollectionChanges<?, Object>) collection.observer();
+                        changes.elementModified(value);
+                    } else {
+                        proxy.setState(attribute, PropertyState.ASSOCIATED_IS_MODIFIED);
+                    }
+                }
+            });
+        }
 
     }
 
