@@ -73,8 +73,10 @@ public class CollectionChanges<T, E> implements CollectionObserver<E> {
     @Override
     public void elementModified(E element) {
         Objects.requireNotNull(element);
-        modified.add(element);
-        proxy.setState(attribute, PropertyState.ASSOCIATED_IS_MODIFIED);
+        if(!removed.contains(element)) {
+            modified.add(element);
+            proxy.setState(attribute, PropertyState.ASSOCIATED_IS_MODIFIED);
+        }
     }
 
     @Override

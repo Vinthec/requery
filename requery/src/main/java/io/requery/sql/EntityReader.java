@@ -21,6 +21,7 @@ import io.requery.EntityCache;
 import io.requery.PersistenceException;
 import io.requery.Queryable;
 import io.requery.meta.Attribute;
+import io.requery.meta.Cardinality;
 import io.requery.meta.QueryAttribute;
 import io.requery.meta.Type;
 import io.requery.proxy.CollectionChanges;
@@ -250,40 +251,49 @@ class EntityReader<E extends S, S> implements PropertyLoader<E> {
         for (Attribute<E, ?> attribute : attributes) {
             // if it's a foreign key its resolved as part of the basic properties
             if (attribute.isAssociation()) {
-                refreshAssociation(proxy, attribute);
+                refreshAssociation(entity, proxy, attribute);
             }
         }
         return entity;
     }
 
-    private <V> void refreshAssociation(EntityProxy<E> proxy, Attribute<E, V> attribute) {
+    private void refreshAssociation(E entity, EntityProxy<E> proxy, Attribute<E, ?> attribute) {
         Supplier<? extends Result<S>> query = associativeQuery(proxy, attribute);
         switch (attribute.getCardinality()) {
             case ONE_TO_ONE:
             case MANY_TO_ONE:
-                S value = query == null ? null : query.get().firstOrNull();
-                proxy.set(attribute, attribute.getClassType().cast(value), PropertyState.LOADED);
-                addCascadeListener(attribute, proxy, value);
-                break;
+                refreshAssociationToOne(entity, proxy, (Attribute<E, S>) attribute);
+            break;
             case ONE_TO_MANY:
             case MANY_TO_MANY:
-                Initializer<E, V> initializer = attribute.getInitializer();
-                if (initializer instanceof QueryInitializer) {
-                    @SuppressWarnings("unchecked")
-                    QueryInitializer<E, V> queryInitializer = (QueryInitializer<E, V>) initializer;
-                    V result = queryInitializer.initialize(proxy, attribute, query);
-                    proxy.set(attribute, result, PropertyState.LOADED);
-                    for (S entity : (Collection<S>) result) {
-                        addCascadeListener(attribute, proxy, entity);
-                    }
-                }
-                break;
+                refreshAssociationToMany(entity,proxy,(Attribute<E,Collection<S>>) attribute);
+            break;
             default:
                 throw new IllegalStateException();
         }
     }
+    private <V extends S> void refreshAssociationToOne(E entity, EntityProxy<E> proxy, Attribute<E, V> attribute) {
+        Supplier<? extends Result<V>> query = associativeQuery(proxy, attribute);
+        V mappedEntity = query == null ? null : query.get().firstOrNull();
+        proxy.set(attribute, mappedEntity, PropertyState.LOADED);
+        addCascadeListenerToOne(entity, proxy, attribute, mappedEntity);
+    }
+    private <V extends S , COL extends Collection<V>> void refreshAssociationToMany(E entity, EntityProxy<E> proxy, Attribute<E, COL> attribute) {
+        Supplier<? extends Result<V>> query = associativeQuery(proxy, attribute);
+        Initializer<E, COL> initializer = attribute.getInitializer();
+        if (initializer instanceof QueryInitializer) {
+            QueryInitializer<E, COL> queryInitializer = (QueryInitializer<E,COL>) initializer;
+            COL result = queryInitializer.initialize(proxy, attribute, query);
+            proxy.set(attribute, result, PropertyState.LOADED);
+            for (V mappedEntity : result) {
+                addCascadeListenerToMany(entity,proxy,attribute, mappedEntity);
+            }
+        }
+    }
 
-    private <Q extends S> Supplier<? extends Result<Q>>
+
+
+        private <Q extends S> Supplier<? extends Result<Q>>
     associativeQuery(EntityProxy<E> proxy, Attribute<E, ?> attribute) {
         switch (attribute.getCardinality()) {
             case ONE_TO_ONE:
@@ -403,6 +413,7 @@ class EntityReader<E extends S, S> implements PropertyLoader<E> {
                 selectAttributes = selectedAttributes.toArray(new Attribute[selection.size()]);
             }
             Map<Object, EntityProxy<E>> map = new HashMap<>();
+            Map<Object, E> entitiesMap = new HashMap<>();
             for (E entity : entities) {
                 EntityProxy<E> proxy = type.getProxyProvider().apply(entity);
                 Object key = proxy.key();
@@ -410,6 +421,7 @@ class EntityReader<E extends S, S> implements PropertyLoader<E> {
                     throw new MissingKeyException();
                 }
                 map.put(key, proxy);
+                entitiesMap.put(key, entity);
             }
             Condition<?, ?> condition = Attributes.query(keyAttribute).in(map.keySet());
             if (type.isCacheable()) {
@@ -455,8 +467,8 @@ class EntityReader<E extends S, S> implements PropertyLoader<E> {
             if (attributes != null) {
                 for (Attribute<E, ?> attribute : attributes) {
                     if (attribute.isAssociation()) {
-                        for (EntityProxy<E> proxy : map.values()) {
-                            refreshAssociation(proxy, attribute);
+                        for (Object key : map.keySet()) {
+                            refreshAssociation(entitiesMap.get(key), map.get(key), attribute);
                         }
                     }
                 }
@@ -578,35 +590,76 @@ class EntityReader<E extends S, S> implements PropertyLoader<E> {
         return entity;
     }
 
+    private <V extends S, COL extends  Collection<V>> void addCascadeListenerToMany(final E entity, final EntityProxy<E> proxy, final Attribute<E, COL> attribute, final V mappedEntity) {
+        final EntityProxy<V> mappedProxy = context.proxyOf(mappedEntity, false);
+        _addCascadeListenerToMany(mappedProxy,proxy,attribute,mappedEntity);
+        _addCascadeListenerToMapped(entity,proxy,attribute,mappedProxy);
 
-    private <V> void addCascadeListener(final Attribute<E, V> attribute, final EntityProxy<E> proxy, final S entity) {
-        if (entity != null) {
-            final EntityProxy<S> mappedProxy = context.proxyOf(entity, false);
-            if (attribute.getMappedAttribute() != null) {
-                final Attribute<S, ?> mappedAttribute = Attributes.get(attribute.getMappedAttribute());
-                _addCascadeListener(proxy, mappedProxy, mappedAttribute, entity);
-            }
-            _addCascadeListener(mappedProxy, proxy, attribute, entity);
+    }
+
+
+        private <V extends S> void addCascadeListenerToOne(final E entity, final EntityProxy<E> proxy, final Attribute<E, V> attribute, final V mappedEntity) {
+        if (mappedEntity != null) {
+            final EntityProxy<V> mappedProxy = context.proxyOf(mappedEntity, false);
+            _addCascadeListenerToOne(mappedProxy, proxy, attribute);
+            _addCascadeListenerToMapped(entity,proxy,attribute,mappedProxy);
         }
     }
 
-    private <E1, E2> void _addCascadeListener(final EntityProxy<E1> proxy, final EntityProxy<E2> oppositeProxy, final Attribute<E2, ?> oppositeAttribute, final S entity) {
+    private  <V extends S> void _addCascadeListenerToMapped(final E entity, final EntityProxy<E> proxy, final Attribute<E, ?> attribute, EntityProxy<V> mappedProxy) {
+        if (attribute.getMappedAttribute() != null) {
+            final Attribute<V, ?> mappedAttribute = Attributes.get(attribute.getMappedAttribute());
+            if (mappedAttribute.getCardinality() == Cardinality.MANY_TO_ONE || mappedAttribute.getCardinality() == Cardinality.ONE_TO_ONE) {
+                Attribute<V, E> mappedSimpleAttribute = (Attribute<V, E>) mappedAttribute;
+                _addCascadeListenerToOne(proxy, mappedProxy, mappedSimpleAttribute);
+            } else {
+                Attribute<V, Collection<E>> mappedCollectionAttribute = (Attribute<V, Collection<E>>) mappedAttribute;
+                _addCascadeListenerToMany(proxy, mappedProxy, mappedCollectionAttribute, entity);
+            }
+        }
+    }
+
+
+
+    /**
+     * When proxy is notified of a change then corresponding element in the referencing collection is marked
+     */
+    private <V extends S, T extends S> void _addCascadeListenerToMany(final EntityProxy<T> proxy, final EntityProxy<V> oppositeProxy, final Attribute<V, ? extends Collection<T>> oppositeAttribute, final T entity) {
         if (oppositeAttribute.getCascadeActions().contains(CascadeAction.SAVE)) {
+            //when proxy is m
             proxy.addCascadeModificationListener(oppositeProxy, new Runnable() {
                 @Override
                 public void run() {
-                    Object mappedValue = oppositeProxy.get(oppositeAttribute);
-                    if (mappedValue instanceof ObservableCollection) {
-                        ObservableCollection<Object> collection = (ObservableCollection<Object>) mappedValue;
-                        final CollectionChanges<?, Object> changes = (CollectionChanges<?, Object>) collection.observer();
-                        changes.elementModified(entity);
-                    } else {
-                        oppositeProxy.setState(oppositeAttribute, PropertyState.ASSOCIATED_IS_MODIFIED);
-                    }
+                    ObservableCollection<T> collection = (ObservableCollection<T>) oppositeProxy.get(oppositeAttribute);
+                    collection.observer().elementModified(entity);
+                }
+
+                @Override
+                public String toString() {
+                    return oppositeAttribute.toString();
                 }
             });
         }
     }
+
+    /**
+     * When proxy is modifier -> opposite property is marked
+     */
+    private <V extends  S, T extends S> void _addCascadeListenerToOne(final EntityProxy<T> proxy, final EntityProxy<V> oppositeProxy, final Attribute<V, T> oppositeAttribute) {
+        if (oppositeAttribute.getCascadeActions().contains(CascadeAction.SAVE)) {
+            proxy.addCascadeModificationListener(oppositeProxy, new Runnable() {
+                @Override
+                public void run() {
+                    oppositeProxy.setState(oppositeAttribute, PropertyState.ASSOCIATED_IS_MODIFIED);
+                }
+                @Override
+                public String toString() {
+                    return oppositeAttribute.toString();
+                }
+            });
+        }
+    }
+
 
 
     final <B> E fromBuilder(ResultSet results, Attribute[] selection) throws SQLException {
