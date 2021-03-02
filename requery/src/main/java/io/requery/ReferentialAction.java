@@ -20,6 +20,7 @@ package io.requery;
  * Referential action / propagation constraint type.
  */
 public enum ReferentialAction {
+    NONE,
     CASCADE,
     NO_ACTION,
     RESTRICT,

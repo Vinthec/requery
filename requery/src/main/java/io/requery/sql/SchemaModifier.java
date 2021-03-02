@@ -504,12 +504,14 @@ public class SchemaModifier implements ConnectionProvider {
                 .space();
         }
 
-        if (attribute.getDeleteAction() != null) {
+        if (attribute.getDeleteAction() != null && attribute.getDeleteAction() != ReferentialAction.NONE) {
             qb.keyword(ON, DELETE);
             appendReferentialAction(qb, attribute.getDeleteAction());
         }
         if (platform.supportsOnUpdateCascade() && referencedAttribute != null &&
-            !referencedAttribute.isGenerated() && attribute.getUpdateAction() != null) {
+                !referencedAttribute.isGenerated() &&
+                attribute.getUpdateAction() != null &&
+                attribute.getUpdateAction() != ReferentialAction.NONE) {
             qb.keyword(ON, UPDATE);
             appendReferentialAction(qb, attribute.getUpdateAction());
         }
