@@ -43,4 +43,11 @@ public @interface OneToMany {
      * reference is persisted/deleted. Defaults to {@link CascadeAction#SAVE}.
      */
     CascadeAction[] cascade() default CascadeAction.SAVE;
+
+    /**
+     * (Optional) Whether to apply the remove operation to entities that have
+     * been removed from the relationship and to cascade the remove operation to
+     * those entities.
+     **/
+    boolean orphanRemoval() default false;
 }

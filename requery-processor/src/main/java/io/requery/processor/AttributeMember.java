@@ -71,6 +71,7 @@ import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.JoinColumn;
+
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import java.util.Collections;
@@ -108,6 +109,7 @@ class AttributeMember extends BaseProcessableElement<Element> implements Attribu
     private boolean isTransient;
     private boolean isUnique;
     private boolean isVersion;
+    private boolean isOrphanRemoval;
     private Type type;
     private Class<? extends AttributeBuilder> builderClass;
     private Integer length;
@@ -157,7 +159,7 @@ class AttributeMember extends BaseProcessableElement<Element> implements Attribu
             checkReserved(name(), validator);
         }
         isEmbedded = annotationOf(Embedded.class).isPresent() ||
-            annotationOf(javax.persistence.Embedded.class).isPresent();
+                annotationOf(javax.persistence.Embedded.class).isPresent();
         indexNames.forEach(name -> checkReserved(name, validator));
         if (isReadOnly) {
             checkForInvalidSetter(validator);
@@ -168,7 +170,7 @@ class AttributeMember extends BaseProcessableElement<Element> implements Attribu
     private void validateField(ElementValidator validator) {
         if (element().getKind().isField()) {
             Set<Modifier> modifiers = element().getModifiers();
-            if (!isTransient &&!entity.isUnimplementable() && modifiers.contains(Modifier.PRIVATE)) {
+            if (!isTransient && !entity.isUnimplementable() && modifiers.contains(Modifier.PRIVATE)) {
                 validator.error("Entity field cannot be private");
             }
             if (modifiers.contains(Modifier.STATIC)) {
@@ -228,8 +230,8 @@ class AttributeMember extends BaseProcessableElement<Element> implements Attribu
 
             if (element != null) {
                 if (Mirrors.isInstance(types, element, Number.class)
-                    || Mirrors.isInstance(types, element, java.util.Date.class)
-                    || Mirrors.isInstance(types, element, java.time.temporal.Temporal.class)) {
+                        || Mirrors.isInstance(types, element, java.util.Date.class)
+                        || Mirrors.isInstance(types, element, java.time.temporal.Temporal.class)) {
                     type = Type.NUMERIC;
                 } else if (Mirrors.isInstance(types, element, String.class)) {
                     type = Type.STRING;
@@ -259,8 +261,8 @@ class AttributeMember extends BaseProcessableElement<Element> implements Attribu
 
     private void processFieldAccessAnnotations(ElementValidator validator) {
         if (annotationOf(Transient.class).isPresent() ||
-            annotationOf(java.beans.Transient.class).isPresent() ||
-            annotationOf(javax.persistence.Transient.class).isPresent() ||
+                annotationOf(java.beans.Transient.class).isPresent() ||
+                annotationOf(javax.persistence.Transient.class).isPresent() ||
                 element().getModifiers().contains(Modifier.TRANSIENT)) {
             isTransient = true;
         }
@@ -275,7 +277,7 @@ class AttributeMember extends BaseProcessableElement<Element> implements Attribu
 
     private void processBasicColumnAnnotations(ElementValidator validator) {
         if (annotationOf(Key.class).isPresent() ||
-            annotationOf(javax.persistence.Id.class).isPresent()) {
+                annotationOf(javax.persistence.Id.class).isPresent()) {
             isKey = true;
             if (isTransient) {
                 validator.error("Key field cannot be transient");
@@ -283,16 +285,16 @@ class AttributeMember extends BaseProcessableElement<Element> implements Attribu
         }
         // generated keys can't be set through a setter
         if (annotationOf(Generated.class).isPresent() ||
-            annotationOf(GeneratedValue.class).isPresent()) {
+                annotationOf(GeneratedValue.class).isPresent()) {
             isGenerated = true;
             isReadOnly = true;
 
             // check generation strategy
             annotationOf(GeneratedValue.class).ifPresent(generatedValue -> {
-                if (generatedValue.strategy() != GenerationType.IDENTITY  &&
-                    generatedValue.strategy() != GenerationType.AUTO) {
+                if (generatedValue.strategy() != GenerationType.IDENTITY &&
+                        generatedValue.strategy() != GenerationType.AUTO) {
                     validator.warning("GeneratedValue.strategy() " +
-                        generatedValue.strategy() + " not supported", generatedValue.getClass());
+                            generatedValue.strategy() + " not supported", generatedValue.getClass());
                 }
             });
         }
@@ -303,14 +305,14 @@ class AttributeMember extends BaseProcessableElement<Element> implements Attribu
             isLazy = true;
         }
         if (annotationOf(Nullable.class).isPresent() || isOptional ||
-            Mirrors.findAnnotationMirror(element(), "javax.annotation.Nullable").isPresent()) {
+                Mirrors.findAnnotationMirror(element(), "javax.annotation.Nullable").isPresent()) {
             isNullable = true;
         } else {
 
             isNullable = false;
         }
         if (annotationOf(Version.class).isPresent() ||
-            annotationOf(javax.persistence.Version.class).isPresent()) {
+                annotationOf(javax.persistence.Version.class).isPresent()) {
             isVersion = true;
             if (isKey) {
                 cannotCombine(validator, Key.class, Version.class);
@@ -405,16 +407,16 @@ class AttributeMember extends BaseProcessableElement<Element> implements Attribu
         Optional<Annotation> manyToMany = annotationOf(ManyToMany.class);
 
         oneToOne = oneToOne.isPresent() ? oneToOne :
-            annotationOf(javax.persistence.OneToOne.class);
+                annotationOf(javax.persistence.OneToOne.class);
         oneToMany = oneToMany.isPresent() ? oneToMany :
-            annotationOf(javax.persistence.OneToMany.class);
+                annotationOf(javax.persistence.OneToMany.class);
         manyToOne = manyToOne.isPresent() ? manyToOne :
-            annotationOf(javax.persistence.ManyToOne.class);
+                annotationOf(javax.persistence.ManyToOne.class);
         manyToMany = manyToMany.isPresent() ? manyToMany :
-            annotationOf(javax.persistence.ManyToMany.class);
+                annotationOf(javax.persistence.ManyToMany.class);
 
         if (Stream.of(oneToOne, oneToMany, manyToOne, manyToMany)
-            .filter(Optional::isPresent).count() > 1) {
+                .filter(Optional::isPresent).count() > 1) {
             validator.error("Cannot have more than one associative annotation per field");
         }
         if (oneToOne.isPresent()) {
@@ -428,6 +430,7 @@ class AttributeMember extends BaseProcessableElement<Element> implements Attribu
                     isUnique = true;
                 }
             }
+            isOrphanRemoval = reflect.orphanRemoval();
         }
         if (oneToMany.isPresent()) {
             isIterable = true;
@@ -436,6 +439,7 @@ class AttributeMember extends BaseProcessableElement<Element> implements Attribu
             ReflectiveAssociation reflect = new ReflectiveAssociation(oneToMany.get());
             mappedBy = reflect.mappedBy();
             cascadeActions = reflect.cascade();
+            isOrphanRemoval = reflect.orphanRemoval();
             checkIterable(validator);
             processOrderBy();
         }
@@ -459,14 +463,14 @@ class AttributeMember extends BaseProcessableElement<Element> implements Attribu
             cascadeActions = reflect.cascade();
             Optional<JunctionTable> junctionTable = annotationOf(JunctionTable.class);
             Optional<javax.persistence.JoinTable> joinTable =
-                annotationOf(javax.persistence.JoinTable.class);
+                    annotationOf(javax.persistence.JoinTable.class);
 
             if (junctionTable.isPresent()) {
                 Elements elements = processingEnvironment.getElementUtils();
                 associativeDescriptor =
-                    new JunctionTableAssociation(elements, this, junctionTable.get());
+                        new JunctionTableAssociation(elements, this, junctionTable.get());
 
-            } else if(joinTable.isPresent()) {
+            } else if (joinTable.isPresent()) {
                 associativeDescriptor = new JoinTableAssociation(joinTable.get());
             }
             isReadOnly = true;
@@ -492,7 +496,7 @@ class AttributeMember extends BaseProcessableElement<Element> implements Attribu
 
     private void checkReserved(String name, ElementValidator validator) {
         if (Stream.of(ReservedKeyword.values())
-            .anyMatch(keyword -> keyword.toString().equalsIgnoreCase(name))) {
+                .anyMatch(keyword -> keyword.toString().equalsIgnoreCase(name))) {
             validator.warning("Column or index name " + name + " may need to be escaped");
         }
     }
@@ -506,20 +510,20 @@ class AttributeMember extends BaseProcessableElement<Element> implements Attribu
     private void processConverterAnnotation(ElementValidator validator) {
         if (annotationOf(Convert.class).isPresent()) {
             Optional<? extends AnnotationMirror> mirror =
-                Mirrors.findAnnotationMirror(element(), Convert.class);
+                    Mirrors.findAnnotationMirror(element(), Convert.class);
             converterType = mirror.map(Mirrors::findAnnotationValue)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .map(value -> value.getValue().toString()).orElse(null);
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .map(value -> value.getValue().toString()).orElse(null);
 
         } else if (annotationOf(javax.persistence.Convert.class).isPresent()) {
 
             Optional<? extends AnnotationMirror> mirror =
-                Mirrors.findAnnotationMirror(element(), javax.persistence.Convert.class);
+                    Mirrors.findAnnotationMirror(element(), javax.persistence.Convert.class);
             converterType = mirror.map(m -> Mirrors.findAnnotationValue(m, "converter"))
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .map(value -> value.getValue().toString()).orElse(null);
+                    .filter(Optional::isPresent)
+                    .map(Optional::get)
+                    .map(value -> value.getValue().toString()).orElse(null);
         }
 
         if (converterType != null && cardinality != null) {
@@ -563,8 +567,8 @@ class AttributeMember extends BaseProcessableElement<Element> implements Attribu
         if (Names.isEmpty(override)) {
             CharSequence simpleName = Names.removeMemberPrefixes(element().getSimpleName());
             return Names.isEmpty(prefix) ?
-                Names.lowerCaseFirst(simpleName) :
-                prefix + Names.upperCaseFirst(simpleName);
+                    Names.lowerCaseFirst(simpleName) :
+                    prefix + Names.upperCaseFirst(simpleName);
         } else {
             return override;
         }
@@ -626,11 +630,11 @@ class AttributeMember extends BaseProcessableElement<Element> implements Attribu
         } else {
             // if an interface try to find a matching setter to implement
             for (ExecutableElement element :
-                ElementFilter.methodsIn(entity.element().getEnclosedElements())) {
+                    ElementFilter.methodsIn(entity.element().getEnclosedElements())) {
                 List<? extends VariableElement> parameters = element.getParameters();
                 if (parameters.size() == 1) {
                     String property =
-                        Names.removeMethodPrefixes(element.getSimpleName().toString());
+                            Names.removeMethodPrefixes(element.getSimpleName().toString());
                     if (property.toLowerCase(Locale.ROOT).equalsIgnoreCase(name())) {
                         return element.getSimpleName().toString();
                     }
@@ -660,7 +664,7 @@ class AttributeMember extends BaseProcessableElement<Element> implements Attribu
                 if (parameters.size() == 1) {
                     String property = Names.removeMethodPrefixes(element.getSimpleName().toString());
                     if (property.toLowerCase(Locale.ROOT).equalsIgnoreCase(name())) {
-                        validator.error("Element \""+ fieldName() + "\" is read-only but has setter (Kotlin: change var to val)");
+                        validator.error("Element \"" + fieldName() + "\" is read-only but has setter (Kotlin: change var to val)");
                     }
                 }
             }
@@ -669,7 +673,7 @@ class AttributeMember extends BaseProcessableElement<Element> implements Attribu
 
     private boolean useBeanStyleProperties() {
         return entity.propertyNameStyle() == PropertyNameStyle.BEAN ||
-               entity.propertyNameStyle() == PropertyNameStyle.FLUENT_BEAN;
+                entity.propertyNameStyle() == PropertyNameStyle.FLUENT_BEAN;
     }
 
     @Override
@@ -799,6 +803,11 @@ class AttributeMember extends BaseProcessableElement<Element> implements Attribu
     }
 
     @Override
+    public boolean isOrphanRemoval() {
+        return isOrphanRemoval;
+    }
+
+    @Override
     public Cardinality cardinality() {
         return cardinality;
     }
@@ -888,14 +897,24 @@ class AttributeMember extends BaseProcessableElement<Element> implements Attribu
             }
         }
 
+        boolean orphanRemoval() {
+            try {
+                return (Boolean) annotation.getClass().getMethod("orphanRemoval").invoke(annotation);
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+
+
         CascadeAction[] cascade() {
             try {
                 return (CascadeAction[])
-                    annotation.getClass().getMethod("cascade").invoke(annotation);
+                        annotation.getClass().getMethod("cascade").invoke(annotation);
             } catch (Exception e) {
                 try {
                     CascadeType[] cascadeTypes = (CascadeType[])
-                        annotation.getClass().getMethod("cascade").invoke(annotation);
+                            annotation.getClass().getMethod("cascade").invoke(annotation);
                     return mapCascadeActions(cascadeTypes);
                 } catch (Exception ee) {
                     return null;

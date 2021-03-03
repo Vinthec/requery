@@ -25,7 +25,7 @@ import io.requery.query.function.Function
 import io.requery.query.function.Max
 import io.requery.query.function.Min
 import io.requery.util.function.Supplier
-import java.util.LinkedHashSet
+import java.util.*
 
 /**
  * Delegates [QueryAttribute] for the core implementation.
@@ -60,6 +60,8 @@ open class AttributeDelegate<T, V>(attribute : QueryAttribute<T, V>) :
     }
 
     override fun get(): QueryAttribute<T, V> = attribute
+
+    override fun toString(): String = "D:$name"
 }
 
 class StringAttributeDelegate<T, V>(attribute : StringAttribute<T, V>) :

@@ -56,6 +56,7 @@ abstract class BaseAttribute<T, V> extends FieldExpression<V> implements
     boolean isReadOnly;
     boolean isUnique;
     boolean isVersion;
+    boolean isOrphanRemoval;
     Integer length;
     Class<?> mapKeyClass;
     Supplier<Attribute> mappedAttribute;
@@ -69,6 +70,7 @@ abstract class BaseAttribute<T, V> extends FieldExpression<V> implements
     Supplier<Attribute> referencedAttribute;
     Class<?> referencedClass;
     ReferentialAction updateAction;
+
 
     BaseAttribute() {
     }
@@ -95,6 +97,7 @@ abstract class BaseAttribute<T, V> extends FieldExpression<V> implements
         isReadOnly = builder.isReadOnly();
         isUnique = builder.isUnique();
         isVersion = builder.isVersion();
+        isOrphanRemoval = builder.isOrphanRemoval();
         length = builder.getLength();
         mapKeyClass = builder.getMapKeyClass();
         mappedAttribute = builder.getMappedAttribute();
@@ -293,6 +296,11 @@ abstract class BaseAttribute<T, V> extends FieldExpression<V> implements
     @Override
     public boolean isVersion() {
         return isVersion;
+    }
+
+    @Override
+    public boolean isOrphanRemoval() {
+        return isOrphanRemoval;
     }
 
     @Override

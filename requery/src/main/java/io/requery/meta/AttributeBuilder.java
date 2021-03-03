@@ -193,6 +193,11 @@ public class AttributeBuilder<T, V> extends BaseAttribute<T, V> {
         return this;
     }
 
+    public AttributeBuilder<T,V> setOrphanRemoval(boolean orphanRemoval) {
+        this.isOrphanRemoval = orphanRemoval;
+        return  this;
+    }
+
     public QueryAttribute<T, V> build() {
         return new ImmutableAttribute<>(this);
     }

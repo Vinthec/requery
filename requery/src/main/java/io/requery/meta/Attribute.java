@@ -227,4 +227,9 @@ public interface Attribute<T, V> {
      * @return true if this attribute is to be used a locking field.
      */
     boolean isVersion();
+
+    /**
+     * @return true if to be remove of that entities that have been removed from the relationship
+     */
+    boolean isOrphanRemoval();
 }

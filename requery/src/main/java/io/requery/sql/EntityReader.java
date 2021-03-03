@@ -631,7 +631,9 @@ class EntityReader<E extends S, S> implements PropertyLoader<E> {
                 @Override
                 public void run() {
                     ObservableCollection<T> collection = (ObservableCollection<T>) oppositeProxy.get(oppositeAttribute);
-                    collection.observer().elementModified(entity);
+                    if(collection!=null) {  //todo remove all cascade obsever when link are broken
+                        collection.observer().elementModified(entity);
+                    }
                 }
 
                 @Override

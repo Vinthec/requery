@@ -16,14 +16,15 @@
 
 package io.requery.proxy;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.WeakHashMap;
+
 import io.requery.meta.Attribute;
 import io.requery.meta.Type;
 import io.requery.util.Objects;
-
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.WeakHashMap;
 
 /**
  * Proxy object for a data entity containing various properties that can be read or written and the
@@ -41,7 +42,7 @@ public class EntityProxy<E> implements Gettable<E>, Settable<E>, EntityStateList
     private CompositeEntityStateListener<E> listeners;
     private Object key;
     private boolean regenerateKey;
-    private Map<Object, Runnable> cascadeModificationListeners = new WeakHashMap<>();
+    private final Map<Object, Runnable> cascadeModificationListeners = new WeakHashMap<>();
 
     /**
      * Create a new {@link EntityProxy} instance for a given entity object that can proxy it's
@@ -383,15 +384,26 @@ public class EntityProxy<E> implements Gettable<E>, Settable<E>, EntityStateList
         stateListener().postLoad();
     }
 
+    public void removeCascadeModificationListener(Object value) {
+        synchronized (cascadeModificationListeners) {
+            cascadeModificationListeners.remove(value);
+        }
+    }
 
     public void addCascadeModificationListener(Object value, Runnable runnable) {
-        cascadeModificationListeners.put(value, runnable);
+        synchronized (cascadeModificationListeners) {
+            cascadeModificationListeners.put(value, runnable);
+        }
     }
 
     private void doOnStateChange(Attribute<E, ?> attribute, PropertyState newState, PropertyState oldState) {
-        if(newState == PropertyState.MODIFIED || newState == PropertyState.ASSOCIATED_IS_MODIFIED ) {
-            if(newState != oldState) {
-                for (Runnable action : cascadeModificationListeners.values()) {
+        if (newState == PropertyState.MODIFIED || newState == PropertyState.ASSOCIATED_IS_MODIFIED) {
+            if (newState != oldState) {
+                Collection<Runnable> actions;
+                synchronized (cascadeModificationListeners) {
+                    actions = new ArrayList<>(cascadeModificationListeners.values());
+                }
+                for (Runnable action : actions) {
                     action.run();
                 }
             }
@@ -404,18 +416,8 @@ public class EntityProxy<E> implements Gettable<E>, Settable<E>, EntityStateList
         if (obj instanceof EntityProxy) {
             EntityProxy other = (EntityProxy) obj;
             if (other.entity.getClass().equals(entity.getClass())) {
-                for (Attribute<E, ?> attribute : type.getAttributes()) {
-                    // comparing only the non-associative properties for now
-                    if (!attribute.isAssociation()) {
-                        Object value = get(attribute, false);
-                        @SuppressWarnings("unchecked")
-                        Object otherValue = other.get(attribute, false);
-                        if (!Objects.equals(value, otherValue)) {
-                            return false;
-                        }
-                    }
-                }
-                return true;
+                return key().equals(other.key());
+
             }
         }
         return false;

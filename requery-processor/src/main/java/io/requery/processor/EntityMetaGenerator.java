@@ -362,6 +362,8 @@ class EntityMetaGenerator extends EntityPartGenerator {
         builder.add(".setLazy($L)\n", attribute.isLazy());
         builder.add(".setNullable($L)\n", attribute.isNullable());
         builder.add(".setUnique($L)\n", attribute.isUnique());
+
+
         if (!Names.isEmpty(attribute.defaultValue())) {
             builder.add(".setDefaultValue($S)\n", attribute.defaultValue());
         }

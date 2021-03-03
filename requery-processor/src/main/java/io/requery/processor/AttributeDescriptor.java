@@ -179,6 +179,10 @@ interface AttributeDescriptor {
     boolean isVersion();
 
     /**
+     * @return true if to be remove of that entities that have been removed from the relationship
+     */
+    boolean isOrphanRemoval();
+    /**
      * @return the cardinality of this attribute if it is an association
      */
     Cardinality cardinality();
