@@ -306,13 +306,8 @@ class AttributeMember extends BaseProcessableElement<Element> implements Attribu
             Mirrors.findAnnotationMirror(element(), "javax.annotation.Nullable").isPresent()) {
             isNullable = true;
         } else {
-            // if not a primitive type the value assumed nullable
-            if (element().getKind().isField()) {
-                isNullable = !element().asType().getKind().isPrimitive();
-            } else if(element().getKind() == ElementKind.METHOD) {
-                ExecutableElement executableElement = (ExecutableElement) element();
-                isNullable = !executableElement.getReturnType().getKind().isPrimitive();
-            }
+
+            isNullable = false;
         }
         if (annotationOf(Version.class).isPresent() ||
             annotationOf(javax.persistence.Version.class).isPresent()) {
