@@ -379,6 +379,10 @@ class EntityMetaGenerator extends EntityPartGenerator {
         if (attribute.isVersion()) {
             builder.add(".setVersion($L)\n", attribute.isVersion());
         }
+        if (attribute.isOrphanRemoval()) {
+            builder.add(".setOrphanRemoval($L)\n", attribute.isOrphanRemoval());
+        }
+
         if (attribute.converterName() != null) {
             builder.add(".setConverter(new $L())\n", attribute.converterName());
         }
