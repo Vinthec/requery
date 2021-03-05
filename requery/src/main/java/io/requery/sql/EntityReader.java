@@ -29,6 +29,7 @@ import io.requery.proxy.CompositeKey;
 import io.requery.proxy.EntityBuilderProxy;
 import io.requery.proxy.EntityProxy;
 import io.requery.proxy.Initializer;
+import io.requery.proxy.Property;
 import io.requery.proxy.PropertyLoader;
 import io.requery.proxy.PropertyState;
 import io.requery.proxy.QueryInitializer;
@@ -630,9 +631,11 @@ class EntityReader<E extends S, S> implements PropertyLoader<E> {
             proxy.addCascadeModificationListener(oppositeProxy, new Runnable() {
                 @Override
                 public void run() {
-                    ObservableCollection<T> collection = (ObservableCollection<T>) oppositeProxy.get(oppositeAttribute);
-                    if(collection!=null) {  //todo remove all cascade obsever when link are broken
-                        collection.observer().elementModified(entity);
+                    if(oppositeProxy.getState(oppositeAttribute) != PropertyState.FETCH) {
+                        ObservableCollection<T> collection = (ObservableCollection<T>) oppositeProxy.get(oppositeAttribute);  // Should distinct detached and unloaded (instead of fetch only)
+                        if (collection instanceof ObservableCollection) {  //todo remove all cascade obsever when link are broken
+                            collection.observer().elementModified(entity);
+                        }
                     }
                 }
 

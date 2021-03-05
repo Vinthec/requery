@@ -685,7 +685,7 @@ class EntityWriter<E extends S, S> implements ParameterBinder<E> {
     void updateAssociation(Cascade mode, E entity, final EntityProxy<E> proxy,
                            final Attribute<E, ?> attribute, Set<Object> seen) {
         switch (attribute.getCardinality()) {
-            case ONE_TO_ONE:
+            case ONE_TO_ONE:  //Non reference side as this cas is manage by foreignKeyReference in update method (what about delete method ? )
                 S value = (S) proxy.get(attribute, false);
                 if (value != null) {
                     Attribute<S, Object> mapped = Attributes.get(attribute.getMappedAttribute());
