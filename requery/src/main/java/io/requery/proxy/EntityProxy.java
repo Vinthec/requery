@@ -20,11 +20,13 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.WeakHashMap;
 
 import io.requery.meta.Attribute;
 import io.requery.meta.Type;
 import io.requery.util.Objects;
+import io.requery.util.function.Function;
 
 /**
  * Proxy object for a data entity containing various properties that can be read or written and the
@@ -138,7 +140,19 @@ public class EntityProxy<E> implements Gettable<E>, Settable<E>, EntityStateList
 
     @Override
     public <V> void set(Attribute<E, V> attribute, V value) {
+        handleOrphanSet(attribute,value);
+
         set(attribute, value, PropertyState.MODIFIED);
+    }
+
+    private <V> void handleOrphanSet(Attribute<E,V> attribute, V value) {
+        if(attribute.getPropertyOrphansSet()!=null) {
+            Set<V> orphanSet = attribute.getPropertyOrphansSet().get(entity);
+            V currentValue = attribute.getProperty().get(entity);
+            if(currentValue != null ) {
+                orphanSet.add(currentValue);
+            }
+        }
     }
 
     @Override
@@ -413,6 +427,9 @@ public class EntityProxy<E> implements Gettable<E>, Settable<E>, EntityStateList
 
     @Override
     public boolean equals(Object obj) {
+        if(key()==null) {
+            return super.equals(obj);
+        }
         if (obj instanceof EntityProxy) {
             EntityProxy other = (EntityProxy) obj;
             if (other.entity.getClass().equals(entity.getClass())) {
@@ -425,13 +442,10 @@ public class EntityProxy<E> implements Gettable<E>, Settable<E>, EntityStateList
 
     @Override
     public int hashCode() {
-        int hash = 31;
-        for (Attribute<E, ?> attribute : type.getAttributes()) {
-            if (!attribute.isAssociation()) {
-                hash = 31 * hash + Objects.hashCode(get(attribute, false));
-            }
+        if(key() == null) {
+            return super.hashCode();
         }
-        return hash;
+        return key().hashCode();
     }
 
     @Override

@@ -20,13 +20,14 @@ import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 
+import java.util.List;
+
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.PrimitiveType;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
-import java.util.List;
 
 abstract class EntityPartGenerator {
 
@@ -57,6 +58,10 @@ abstract class EntityPartGenerator {
 
     static String propertyStateFieldName(AttributeDescriptor attribute) {
         return "$" + attribute.fieldName() + "_state";
+    }
+
+    static String orphansSetFieldName(AttributeDescriptor attribute) {
+        return "$" + attribute.fieldName() + "_orphans_set";
     }
 
     static String attributeFieldName(AttributeDescriptor attribute) {

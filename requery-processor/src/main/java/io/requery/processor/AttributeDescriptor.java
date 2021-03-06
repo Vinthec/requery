@@ -185,6 +185,12 @@ interface AttributeDescriptor {
     /**
      * @return the cardinality of this attribute if it is an association
      */
+
+    default boolean hasOrphansSet() {
+        return cardinality() == Cardinality.ONE_TO_ONE && isOrphanRemoval();
+    }
+
+
     Cardinality cardinality();
 
     /**

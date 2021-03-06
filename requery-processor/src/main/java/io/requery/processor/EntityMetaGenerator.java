@@ -23,6 +23,25 @@ import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
+
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.StringJoiner;
+
+import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.ElementFilter;
+import javax.tools.Diagnostic;
+
 import io.requery.CascadeAction;
 import io.requery.ReferentialAction;
 import io.requery.meta.Attribute;
@@ -46,23 +65,6 @@ import io.requery.proxy.ShortProperty;
 import io.requery.query.Order;
 import io.requery.util.function.Function;
 import io.requery.util.function.Supplier;
-
-import javax.annotation.processing.ProcessingEnvironment;
-import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Modifier;
-import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeMirror;
-import javax.lang.model.util.ElementFilter;
-import javax.tools.Diagnostic;
-import java.io.IOException;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.StringJoiner;
 
 class EntityMetaGenerator extends EntityPartGenerator {
 
@@ -566,7 +568,7 @@ class EntityMetaGenerator extends EntityPartGenerator {
                 .setNullable(isNullable)
                 .setReadOnly(entity.isImmutable())
                 .setUseMethod(useGetter)
-                .build(builder);
+                .configure(builder);
 
         // additional primitive get/set if the type is primitive
         if (propertyClass != Property.class) {
@@ -577,7 +579,7 @@ class EntityMetaGenerator extends EntityPartGenerator {
                 .setMethodSuffix(name)
                 .setReadOnly(entity.isImmutable())
                 .setUseMethod(useGetter)
-                .build(builder);
+                .configure(builder);
         }
         block.add(".setProperty($L)\n", builder.build());
         block.add(".setPropertyName($S)\n", attribute.element().getSimpleName());
@@ -588,8 +590,20 @@ class EntityMetaGenerator extends EntityPartGenerator {
             TypeSpec.Builder stateType = TypeSpec.anonymousClassBuilder("")
                 .addSuperinterface(parameterizedTypeName(Property.class, targetName, stateClass));
             String fieldName = prefix + propertyStateFieldName(attribute);
-            new GeneratedProperty(fieldName, targetName, stateClass).build(stateType);
+            new GeneratedProperty(fieldName, targetName, stateClass).configure(stateType);
             block.add(".setPropertyState($L)\n", stateType.build());
+
+            if(attribute.hasOrphansSet()) {
+                TypeName setType = ParameterizedTypeName.get(ClassName.get(Set.class), resolveAttributeType(attribute));
+                TypeSpec.Builder propertyTypeBuilder = TypeSpec.anonymousClassBuilder("")
+                        .addSuperinterface(parameterizedTypeName(Property.class, targetName, setType));
+                String setFieldName = prefix + orphansSetFieldName(attribute);
+                new GeneratedProperty(setFieldName, targetName, setType)
+                        .setReadOnly(true)
+                        .configure(propertyTypeBuilder);
+                block.add(".setPropertyOrphansSet($L)\n", propertyTypeBuilder.build());
+
+            }
         }
 
         if (!entity.isImmutable()) {
@@ -650,7 +664,7 @@ class EntityMetaGenerator extends EntityPartGenerator {
                 .setWriteOnly(true)
                 .setUseMethod(useSetter)
                 .setAccessSuffix(parameterSuffix)
-                .build(builderProperty);
+                .configure(builderProperty);
         if (propertyClass != Property.class) {
             TypeName primitiveType = TypeName.get(attribute.typeMirror());
             String name = Names.upperCaseFirst(attribute.typeMirror().toString());
@@ -659,7 +673,7 @@ class EntityMetaGenerator extends EntityPartGenerator {
                 .setAccessSuffix(parameterSuffix)
                 .setUseMethod(useSetter)
                 .setWriteOnly(true)
-                .build(builderProperty);
+                .configure(builderProperty);
         }
         block.add(".setBuilderProperty($L)\n", builderProperty.build());
     }

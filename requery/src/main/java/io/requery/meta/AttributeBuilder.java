@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * Builds information about an attribute on a specific {@link Type}.
@@ -167,6 +168,13 @@ public class AttributeBuilder<T, V> extends BaseAttribute<T, V> {
         this.propertyState = property;
         return this;
     }
+
+    public AttributeBuilder<T, V> setPropertyOrphansSet(Property<T, Set<V>> property) {
+        this.propertyOrphansSet = property;
+        return this;
+    }
+
+
 
     public AttributeBuilder<T, V> setReferencedAttribute(Supplier<Attribute> attribute) {
         this.referencedAttribute = attribute;

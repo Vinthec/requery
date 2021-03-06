@@ -79,7 +79,7 @@ class GeneratedProperty {
         return this;
     }
 
-    void build(TypeSpec.Builder builder) {
+    void configure(TypeSpec.Builder builder) {
         // get
         MethodSpec.Builder getMethod = CodeGeneration.overridePublicMethod("get" + methodSuffix)
             .addParameter(entity, "entity")

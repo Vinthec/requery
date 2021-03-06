@@ -652,6 +652,24 @@ class EntityWriter<E extends S, S> implements ParameterBinder<E> {
         return result;
     }
 
+    private <V extends S> void removeOrphan(E entity, EntityProxy<E> proxy, Attribute<E,V> attribute) {
+        V excludeFromRemovalValue = attribute.getProperty().get(entity);
+        if(excludeFromRemovalValue != null) {
+            EntityProxy<V> currentValueProxy = context.proxyOf(excludeFromRemovalValue, false);
+            if(!currentValueProxy.isLinked()) {
+                excludeFromRemovalValue = null;
+            }
+        }
+        Set<V> candidatesOrphans = attribute.getPropertyOrphansSet().get(entity);
+        for (V candidate : candidatesOrphans) {
+            EntityProxy<V> candidateProxy = context.proxyOf(candidate, false);
+            if(candidateProxy.isLinked() && !candidate.equals(excludeFromRemovalValue)) {
+                cascadeRemove(entity,candidate,true);
+            }
+        }
+        candidatesOrphans.clear();
+}
+
     private void addVersionCondition(Where<?> where, Object version) {
         QueryAttribute<E, Object> attribute = Attributes.query(versionAttribute);
         VersionColumnDefinition definition = context.getPlatform().versionColumnDefinition();
@@ -677,6 +695,9 @@ class EntityWriter<E extends S, S> implements ParameterBinder<E> {
                         (filter == null && (stateless || state != PropertyState.LOADED))) {
                     updateAssociation(mode, entity, proxy, attribute, seen);
                 }
+                if(attribute.getPropertyOrphansSet() != null) {
+                    removeOrphan(entity, proxy,(Attribute<E, S>) attribute);
+                }
             }
         }
     }
@@ -689,13 +710,11 @@ class EntityWriter<E extends S, S> implements ParameterBinder<E> {
             case ONE_TO_ONE:  //Non reference side as this cas is manage by foreignKeyReference in update method (what about delete method ? )
                 S value = (S) proxy.get(attribute, false);
                 if (value != null) {
-
                     EntityProxy<S> referred = context.proxyOf(value, true);
                     if(attribute.getMappedAttribute() != null) { //opposite is not  mandatory
                         Attribute<S, Object> mapped = Attributes.get(attribute.getMappedAttribute());
                         referred.set(mapped, entity, PropertyState.MODIFIED);
                     }
-
                     cascadeWrite(mode, value, referred, null, seen);
                 } else if (!stateless) {
                     //TODO OrphanRemoval

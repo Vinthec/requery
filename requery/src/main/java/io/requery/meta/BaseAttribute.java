@@ -31,6 +31,8 @@ import io.requery.util.function.Supplier;
 import java.util.Collections;
 import java.util.Set;
 
+import javax.annotation.Nullable;
+
 abstract class BaseAttribute<T, V> extends FieldExpression<V> implements
     QueryAttribute<T, V>, TypeDeclarable<T> {
 
@@ -67,6 +69,7 @@ abstract class BaseAttribute<T, V> extends FieldExpression<V> implements
     Property<T, V> property;
     String propertyName;
     Property<T, PropertyState> propertyState;
+    Property<T,Set<V>> propertyOrphansSet;
     Supplier<Attribute> referencedAttribute;
     Class<?> referencedClass;
     ReferentialAction updateAction;
@@ -108,6 +111,7 @@ abstract class BaseAttribute<T, V> extends FieldExpression<V> implements
         property = builder.getProperty();
         propertyName = builder.getPropertyName();
         propertyState = builder.getPropertyState();
+        propertyOrphansSet = builder.getPropertyOrphansSet();
         referencedAttribute = builder.getReferencedAttribute();
         referencedClass = builder.getReferencedClass();
         updateAction = builder.getUpdateAction();
@@ -231,6 +235,12 @@ abstract class BaseAttribute<T, V> extends FieldExpression<V> implements
     @Override
     public Property<T, PropertyState> getPropertyState() {
         return propertyState;
+    }
+
+    @Nullable
+    @Override
+    public Property<T, Set<V>> getPropertyOrphansSet() {
+        return propertyOrphansSet;
     }
 
     @Override

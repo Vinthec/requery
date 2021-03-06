@@ -25,13 +25,17 @@ import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 import com.squareup.javapoet.WildcardTypeName;
-import io.requery.Entity;
-import io.requery.Persistable;
-import io.requery.PropertyNameStyle;
-import io.requery.meta.Attribute;
-import io.requery.proxy.EntityProxy;
-import io.requery.proxy.PreInsertListener;
-import io.requery.proxy.PropertyState;
+
+import java.io.IOException;
+import java.lang.annotation.Annotation;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.StringJoiner;
+import java.util.stream.Collectors;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
@@ -44,17 +48,14 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
-import java.io.IOException;
-import java.lang.annotation.Annotation;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.StringJoiner;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
+
+import io.requery.Entity;
+import io.requery.Persistable;
+import io.requery.PropertyNameStyle;
+import io.requery.meta.Attribute;
+import io.requery.proxy.EntityProxy;
+import io.requery.proxy.PreInsertListener;
+import io.requery.proxy.PropertyState;
 
 /**
  * Generates a java class file from an abstract class marked with the {@link Entity} annotation.
@@ -165,6 +166,13 @@ class EntityGenerator extends EntityPartGenerator implements SourceGenerator {
                         .builder(stateType, propertyStateFieldName(attribute),
                                  generatedMemberModifiers())
                         .build());
+                if(attribute.hasOrphansSet()) {
+                    builder.addField(FieldSpec
+                            .builder(ParameterizedTypeName.get(ClassName.get(Set.class),resolveAttributeType(attribute)),
+                            orphansSetFieldName(attribute) , generatedMemberModifiers())
+                    .initializer(" new $T()",ClassName.get(HashSet.class))
+                    .build());
+                }
             });
         }
         if (entity.isEmbedded() && !(entity.isImmutable() || entity.isUnimplementable())) {

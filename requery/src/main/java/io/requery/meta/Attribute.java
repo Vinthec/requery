@@ -27,6 +27,8 @@ import io.requery.util.function.Supplier;
 
 import java.util.Set;
 
+import javax.annotation.Nullable;
+
 /**
  * Represents information about an attribute on a specific {@link Type}.
  *
@@ -160,6 +162,11 @@ public interface Attribute<T, V> {
      * @return {@link Property} representing access to the state of the held property.
      */
     Property<T, PropertyState> getPropertyState();
+
+
+    @Nullable
+    Property<T,Set<V>> getPropertyOrphansSet();
+
 
     /**
      * @return For a foreign key relationship the attribute being referenced. Note returns a
