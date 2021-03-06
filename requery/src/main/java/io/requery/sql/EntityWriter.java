@@ -22,6 +22,7 @@ import io.requery.PersistenceException;
 import io.requery.Queryable;
 import io.requery.ReferentialAction;
 import io.requery.meta.Attribute;
+import io.requery.meta.Cardinality;
 import io.requery.meta.EntityModel;
 import io.requery.meta.QueryAttribute;
 import io.requery.meta.Type;
@@ -688,9 +689,13 @@ class EntityWriter<E extends S, S> implements ParameterBinder<E> {
             case ONE_TO_ONE:  //Non reference side as this cas is manage by foreignKeyReference in update method (what about delete method ? )
                 S value = (S) proxy.get(attribute, false);
                 if (value != null) {
-                    Attribute<S, Object> mapped = Attributes.get(attribute.getMappedAttribute());
+
                     EntityProxy<S> referred = context.proxyOf(value, true);
-                    referred.set(mapped, entity, PropertyState.MODIFIED);
+                    if(attribute.getMappedAttribute() != null) { //opposite is not  mandatory
+                        Attribute<S, Object> mapped = Attributes.get(attribute.getMappedAttribute());
+                        referred.set(mapped, entity, PropertyState.MODIFIED);
+                    }
+
                     cascadeWrite(mode, value, referred, null, seen);
                 } else if (!stateless) {
                     //TODO OrphanRemoval
@@ -907,8 +912,16 @@ class EntityWriter<E extends S, S> implements ParameterBinder<E> {
         }
         // if cascade delete and the property is not loaded (load it)
         for (Attribute<E, ?> attribute : associativeAttributes) {
-            updateAssociation(Cascade.ORPHAN_REMOVAL, entity, proxy, attribute, null);
-
+            if(attribute.getCardinality() == Cardinality.ONE_TO_ONE && attribute.isForeignKey()) {
+                S value = (S) proxy.get(attribute,false);
+                proxy.set(attribute,null,PropertyState.MODIFIED);
+                update(entity,proxy);
+                if(attribute.isOrphanRemoval()) {
+                    cascadeRemove(entity,value,true);
+                }
+            }  else {
+                updateAssociation(Cascade.ORPHAN_REMOVAL, entity, proxy, attribute, null);
+            }
             if (attribute.getMappedAttribute() != null && proxy.getState(attribute) == PropertyState.LOADED) {
                 Object value = proxy.get(attribute);
                 Collection collection = value instanceof Collection ? (Collection) value : Arrays.asList(value);
