@@ -61,7 +61,7 @@ open class AttributeDelegate<T, V>(attribute : QueryAttribute<T, V>) :
 
     override fun get(): QueryAttribute<T, V> = attribute
 
-    override fun toString(): String = "D:$name"
+    override fun toString(): String = attribute.toString()
 }
 
 class StringAttributeDelegate<T, V>(attribute : StringAttribute<T, V>) :
