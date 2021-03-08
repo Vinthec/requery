@@ -935,7 +935,7 @@ class EntityWriter<E extends S, S> implements ParameterBinder<E> {
                 S value = (S) proxy.get(attribute,false);
                 proxy.set(attribute,null,PropertyState.MODIFIED);
                 update(entity,proxy);
-                if(attribute.isOrphanRemoval()) {
+                if(value != null && attribute.isOrphanRemoval()) {
                     cascadeRemove(entity,value,true);
                 }
             }  else {
