@@ -823,6 +823,11 @@ class EntityWriter<E extends S, S> implements ParameterBinder<E> {
                         if (count != 1) {
                             throw new RowCountException(entity.getClass(), 1, count);
                         }
+                        if(attribute.isOrphanRemoval()) {
+                            EntityProxy<S> uProxy = context.proxyOf(removed, false);
+                            cascadeWrite(Cascade.ORPHAN_REMOVAL,removed, uProxy, null,seen);
+                        }
+
                     }
                     for (S modified : changes.modifiedElements()) {
                         S junction = (S) referencedType.getFactory().get();

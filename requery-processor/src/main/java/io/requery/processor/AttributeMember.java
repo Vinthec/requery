@@ -473,6 +473,7 @@ class AttributeMember extends BaseProcessableElement<Element> implements Attribu
             } else if (joinTable.isPresent()) {
                 associativeDescriptor = new JoinTableAssociation(joinTable.get());
             }
+            isOrphanRemoval = reflect.orphanRemoval();
             isReadOnly = true;
             checkIterable(validator);
             processOrderBy();
