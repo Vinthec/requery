@@ -948,11 +948,12 @@ class EntityWriter<E extends S, S> implements ParameterBinder<E> {
             }
             if (attribute.getMappedAttribute() != null && proxy.getState(attribute) == PropertyState.LOADED) {
                 Object value = proxy.get(attribute);
-                Collection collection = value instanceof Collection ? (Collection) value : Arrays.asList(value);
-                for (Object element : collection) {
-                    context.proxyOf(element, false).removeCascadeModificationListener(proxy);
+                if(value != null) {
+                    Collection collection = value instanceof Collection ? (Collection) value : Arrays.asList(value);
+                    for (Object element : collection) {
+                        context.proxyOf(element, false).removeCascadeModificationListener(proxy);
+                    }
                 }
-
             }
 
             boolean delete = attribute.getCascadeActions().contains(CascadeAction.DELETE);
